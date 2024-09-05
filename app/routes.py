@@ -142,7 +142,7 @@ def get_user():
 def create_appointment():
     data = request.get_json()
 
-    required_fields = ['doctorId', 'date', 'title']
+    required_fields = ['doctorId', 'date', 'title', 'time']
     for field in required_fields:
         if field not in data:
             return jsonify({'message': f'Missing required field: {field}'}), 400
@@ -173,6 +173,8 @@ def create_appointment():
         return jsonify({"message": "Error creating appointment", "error": str(e)}), 500
 
 
+
+
 # View All appointments
 @main.route('/api/appointment', methods=['GET'])
 def view_appointments():
@@ -190,3 +192,20 @@ def view_appointments():
     
     return jsonify({"appointments": appointments_list}), 200
 
+
+
+
+# Get appointment by ID
+@main.route('/api/appointment/<appointment_id>', methods=['GET'])
+@jwt_required()
+def get_appointment(appointment_id):
+    appointment = Appointment.query.get(appointment_id)
+    if appointment:
+        return jsonify({
+            'id': appointment.id,
+            'doctorId': appointment.doctorId,
+            'date': appointment.date.strftime('%Y-%m-%d'),
+            'title': appointment.title,
+            'time': appointment.time.strftime('%H:%M:%S')
+        }), 200
+    return jsonify({"message": "Appointment not found"}), 404

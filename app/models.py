@@ -55,3 +55,18 @@ class Doctor(db.Model):
 
     def __repr__(self):
         return f'<Doctor {self.id}>'
+
+
+class Appointment(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    doctorId = db.Column(UUID(as_uuid=True), db.ForeignKey('doctor.id'), nullable=False)  # Assuming 'doctor.id' is the correct reference
+    date = db.Column(db.Date, nullable=False)
+    title = db.Column(db.Text, nullable=True)
+    time = db.Column(db.Time, default=datetime.now().time(), nullable=False)  # Use db.Time for the time
+    
+    # Relationship with Doctor
+    doctor = db.relationship('Doctor', backref=db.backref('appointments'))
+
+    def __repr__(self):
+        return f'<Appointment {self.id}>'
+    

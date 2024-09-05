@@ -1,18 +1,19 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from app import db
-from app.models import Gender, Role, User, Doctor
+from app.models import Appointment, Gender, Role, User, Doctor
 from werkzeug.exceptions import BadRequest
 
 main = Blueprint('main', __name__)
 
+# registreation auth
 @main.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
 
     # Validate incoming data
-    required_fields = ['email', 'password', 'gender', 'age', 'contactNum', 'profilePic', 'role']
+    required_fields = ['email', 'password', 'firstName', 'lastName', 'gender', 'age', 'contactNum', 'profilePic', 'role']    # FIXME: Add remaining fields here for signup
     for field in required_fields:
         if field not in data:
             raise BadRequest(f'Missing required field: {field}')
@@ -66,7 +67,7 @@ def register():
 
     return jsonify({"message": "User created successfully"}), 201
 
-
+# login auth
 @main.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -114,6 +115,7 @@ def login():
 
     return jsonify({"message": "Invalid credentials"}), 401
 
+# User detail
 @main.route('/api/auth/user', methods=['GET'])
 @jwt_required()
 def get_user():
@@ -132,3 +134,59 @@ def get_user():
             'role': user.role
         }), 200
     return jsonify({"message": "User not found"}), 404
+
+
+# Create appointment
+@main.route('/api/appointment', methods=['POST'])
+@jwt_required()
+def create_appointment():
+    data = request.get_json()
+
+    required_fields = ['doctorId', 'date', 'title']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'message': f'Missing required field: {field}'}), 400
+
+    try:
+     # Expecting date in the format 'YYYY-MM-DD'
+        appointment_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use 'YYYY-MM-DD'"}), 400
+
+    doctor = Doctor.query.get(data['doctorId'])
+    if not doctor:
+        return jsonify({"message": "Doctor not found"}), 404
+
+    # Create an appointment
+    appointment = Appointment(
+        doctorId=data['doctorId'],
+        date=appointment_date,
+        title=data.get('title', '')  
+    )
+
+    try:
+        db.session.add(appointment)
+        db.session.commit()
+        return jsonify({"message": "Appointment created successfully", "appointmentId": appointment.id}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Error creating appointment", "error": str(e)}), 500
+
+
+# View All appointments
+@main.route('/api/appointment', methods=['GET'])
+def view_appointments():
+    appointments = Appointment.query.all()
+    
+    appointments_list = []
+    for appointment in appointments:
+        appointments_list.append({
+            'id': appointment.id,
+            'doctorId': appointment.doctorId,
+            'date': appointment.date.strftime('%Y-%m-%d %H:%M:%S'),
+            'title': appointment.title,
+            'time': appointment.time.strftime('%H:%M:%S')
+        })
+    
+    return jsonify({"appointments": appointments_list}), 200
+

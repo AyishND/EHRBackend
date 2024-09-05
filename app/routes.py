@@ -148,7 +148,9 @@ def get_user():
     return jsonify({"message": "User not found"}), 404
 
 
-# Create appointment
+
+
+# create appointment
 @main.route('/api/appointment', methods=['POST'])
 @jwt_required()
 def create_appointment():
@@ -160,10 +162,14 @@ def create_appointment():
             return jsonify({'message': f'Missing required field: {field}'}), 400
 
     try:
-     # Expecting date in the format 'YYYY-MM-DD'
         appointment_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
     except ValueError:
         return jsonify({"message": "Invalid date format. Use 'YYYY-MM-DD'"}), 400
+
+    try:
+        appointment_time = datetime.strptime(data['time'], '%H:%M').time()
+    except ValueError:
+        return jsonify({"message": "Invalid time format. Use 'HH:MM'"}), 400
 
     doctor = Doctor.query.get(data['doctorId'])
     if not doctor:
@@ -174,13 +180,25 @@ def create_appointment():
         doctorId=data['doctorId'],
         date=appointment_date,
         title=data.get('title', ''),
-        time=data.get('time', ''),
+        time=appointment_time
     )
 
     try:
         db.session.add(appointment)
         db.session.commit()
-        return jsonify({"message": "Appointment created successfully", "appointmentId": appointment.id}), 201
+        
+        #response with appointment details
+        response = {
+            "message": "Appointment created successfully",
+            "appointment": {
+                'id': appointment.id,
+                'doctorId': appointment.doctorId,
+                'date': appointment.date.strftime('%Y-%m-%d'),
+                'title': appointment.title,
+                'time': appointment.time.strftime('%H:%M')
+            }
+        }
+        return jsonify(response), 201
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": "Error creating appointment", "error": str(e)}), 500
@@ -242,12 +260,49 @@ def delete_appointment(appointment_id):
         return jsonify({"message": "Error deleting appointment", "error": str(e)}), 500
 
 
-# Update appointment
 
 
+# Update appointments by ID
+@main.route('/api/appointment/<appointment_id>', methods=['PATCH'])
+@jwt_required()
+def update_appointment(appointment_id):
+    appointment = Appointment.query.get(appointment_id)
+    
+    if not appointment:
+        return jsonify({"message": "Appointment not found"}), 404
 
+    data = request.get_json()
 
+    # Updating the fields 
+    if 'doctorId' in data:
+        appointment.doctorId = data['doctorId']
+    if 'date' in data:
+        try:
+            appointment.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({"message": "Invalid date format. Use 'YYYY-MM-DD'"}), 400
+    if 'title' in data:
+        appointment.title = data['title']
+    if 'time' in data:
+        try:
+            # Expecting time in 'HH:MM' format
+            appointment.time = datetime.strptime(data['time'], '%H:%M').time()
+        except ValueError:
+            return jsonify({"message": "Invalid time format. Use 'HH:MM'"}), 400
 
+    try:
+        db.session.commit()
+        updated_appointment = {
+            'id': appointment.id,
+            'doctorId': appointment.doctorId,
+            'date': appointment.date.strftime('%Y-%m-%d'),
+            'title': appointment.title,
+            'time': appointment.time.strftime('%H:%M')  # Only hours and minutes
+        }
+        return jsonify(updated_appointment), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Error updating appointment", "error": str(e)}), 500
 
 
 # Confirm appointment

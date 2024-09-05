@@ -173,7 +173,8 @@ def create_appointment():
     appointment = Appointment(
         doctorId=data['doctorId'],
         date=appointment_date,
-        title=data.get('title', '')  
+        title=data.get('title', ''),
+        time=data.get('time', ''),
     )
 
     try:

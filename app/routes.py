@@ -115,14 +115,17 @@ def login():
 
     return jsonify({"message": "Invalid credentials"}), 401
 
-# User detail
+
+
+# User deatil
 @main.route('/api/auth/user', methods=['GET'])
 @jwt_required()
 def get_user():
     current_user = get_jwt_identity()
     user = User.query.get(current_user['id'])
+    
     if user:
-        return jsonify({
+        user_data = {
             'id': user.id,
             'email': user.email,
             'firstName': user.firstName,
@@ -132,7 +135,16 @@ def get_user():
             'age': user.age,
             'gender': user.gender,
             'role': user.role
-        }), 200
+        }
+        
+        # If user is doctor, return doctorId in response
+        if user.role == Role.DOCTOR.value:
+            doctor = Doctor.query.filter_by(userId=user.id).first()
+            if doctor:
+                user_data['doctorId'] = doctor.id
+
+        return jsonify(user_data), 200
+    
     return jsonify({"message": "User not found"}), 404
 
 

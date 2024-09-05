@@ -2,7 +2,7 @@ from datetime import timedelta
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from app import db
-from app.models import Gender, Role, User
+from app.models import Gender, Role, User, Doctor
 from werkzeug.exceptions import BadRequest
 
 main = Blueprint('main', __name__)
@@ -12,7 +12,7 @@ def register():
     data = request.get_json()
 
     # Validate incoming data
-    required_fields = ['email', 'password','gender', 'age', 'contactNum', 'profilePic', 'role']
+    required_fields = ['email', 'password', 'gender', 'age', 'contactNum', 'profilePic', 'role']
     for field in required_fields:
         if field not in data:
             raise BadRequest(f'Missing required field: {field}')
@@ -21,14 +21,13 @@ def register():
     if User.query.filter_by(email=data['email']).first():
         return jsonify({"message": "Email already registered"}), 400
     
-# Check if role is valid
+    # Check if role is valid
     if data['role'] not in [role.value for role in Role]:
         return jsonify({"message": "Invalid role"}), 400
 
     if data['gender'] not in [gender.value for gender in Gender]:
-        return jsonify({"message": "Invalid role"}), 400
-    
-    
+        return jsonify({"message": "Invalid gender"}), 400
+
     # Create user instance
     user = User(
         email=data['email'],
@@ -42,15 +41,29 @@ def register():
     )
     user.set_password(data['password'])  # Hash the password
 
-    # Add user to the database
     try:
+        # Add user to the database and flush to get user.id
         db.session.add(user)
+        db.session.flush()  # This will assign user.id before committing
+
+        # If the role is 'Doctor', create a corresponding Doctor instance
+        if data['role'] == Role.DOCTOR.value:
+            doctor = Doctor(
+                userId=user.id
+            )
+            db.session.add(doctor)
+            db.session.flush()  # Flush again to get doctor.id
+
+            # Set doctorId in the User model
+            user.doctorId = doctor.id
+
+        # Commit both user and doctor (if applicable) to the database
         db.session.commit()
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"message": "An error occurred while creating the user", "error": str(e)}), 500
 
-    # Optionally return a response success message
     return jsonify({"message": "User created successfully"}), 201
 
 
@@ -58,25 +71,47 @@ def register():
 def login():
     data = request.get_json()
     user = User.query.filter_by(email=data['email']).first()
+
     if user and user.check_password(data['password']):
+        # Initialize the payload for JWT
+        identity = {
+            'id': user.id,
+            'role': user.role,
+            'email': user.email
+        }
+
+        # If the user is a doctor, add the doctorId to the token
+        if user.role == Role.DOCTOR.value:
+            doctor = Doctor.query.filter_by(userId=user.id).first()
+            if doctor:
+                identity['doctorId'] = doctor.id
+
         # Create access token with custom expiration
         access_token = create_access_token(
-            identity={'id': user.id, 'role': user.role, 'email': user.email},
-            expires_delta=timedelta(days=7)  # Token expires in 30 minutes
+            identity=identity,
+            expires_delta=timedelta(days=7)  # Token expires in 7 days
         )
 
-        return jsonify({
+        # Return user details along with the access token
+        response = {
             'token': access_token,
-             'id': user.id,
-             'email': user.email,
-             'firstName': user.firstName,
-             'lastName': user.lastName,
-             'profilePic': user.profilePic,
-             'contactNum': user.contactNum,
-             'age': user.age,
-             'gender': user.gender,
-             'role': user.role
-         }), 200
+            'id': user.id,
+            'email': user.email,
+            'firstName': user.firstName,
+            'lastName': user.lastName,
+            'profilePic': user.profilePic,
+            'contactNum': user.contactNum,
+            'age': user.age,
+            'gender': user.gender,
+            'role': user.role
+        }
+
+        # If the user is a doctor, include the doctorId in the response
+        if user.role == Role.DOCTOR.value and doctor:
+            response['doctorId'] = doctor.id
+
+        return jsonify(response), 200
+
     return jsonify({"message": "Invalid credentials"}), 401
 
 @main.route('/api/auth/user', methods=['GET'])

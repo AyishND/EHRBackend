@@ -22,6 +22,7 @@ class User(db.Model):
     # __tablename__ = 'Users'
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    doctorId = db.Column(UUID(as_uuid=True), nullable=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     firstName = db.Column(db.String(255), nullable=False)
@@ -31,8 +32,8 @@ class User(db.Model):
     contactNum = db.Column(db.String(15), nullable=True)
     profilePic = db.Column(db.String(255), nullable=True)  # URL as a string
     role = db.Column(db.String(10), nullable=False)
-    createdAt = db.Column(db.DateTime, default=datetime.utcnow)
-    updatedAt = db.Column(db.DateTime, onupdate=datetime.utcnow)
+    createdAt = db.Column(db.DateTime, default=datetime.now)
+    updatedAt = db.Column(db.DateTime, onupdate=datetime.now)
 
     def set_password(self, password):
         self.password = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -40,7 +41,17 @@ class User(db.Model):
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password, password)
 
-    
 
     def __repr__(self):
         return f'<User {self.email}>'
+    
+    
+class Doctor(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    userId = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    
+    # Relationship to the User model
+    user = db.relationship('User', backref=db.backref('doctor', uselist=False))
+
+    def __repr__(self):
+        return f'<Doctor {self.id}>'

@@ -221,3 +221,26 @@ def get_appointment(appointment_id):
             'time': appointment.time.strftime('%H:%M:%S')
         }), 200
     return jsonify({"message": "Appointment not found"}), 404
+
+
+
+# Delete appointment by ID
+@main.route('/api/appointment/<appointment_id>', methods=['DELETE'])
+@jwt_required()
+def delete_appointment(appointment_id):
+    appointment = Appointment.query.get(appointment_id)
+    
+    if not appointment:
+        return jsonify({"message": "Appointment not found"}), 404
+
+    try:
+        db.session.delete(appointment)
+        db.session.commit()
+        return jsonify({"message": "Appointment deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Error deleting appointment", "error": str(e)}), 500
+
+
+
+

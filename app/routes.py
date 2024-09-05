@@ -201,9 +201,8 @@ def view_appointments():
             'title': appointment.title,
             'time': appointment.time.strftime('%H:%M:%S')
         })
-    
-    return jsonify({"appointments": appointments_list}), 200
 
+    return jsonify(appointments_list), 200
 
 
 
@@ -242,5 +241,21 @@ def delete_appointment(appointment_id):
         return jsonify({"message": "Error deleting appointment", "error": str(e)}), 500
 
 
+# Update appointment
 
+
+
+
+
+
+
+# Confirm appointment
+
+
+
+
+
+
+
+# Cancel appointment
 

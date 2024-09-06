@@ -68,6 +68,13 @@ def register():
             db.session.add(admin)
             db.session.flush() 
 
+        elif data['role'] == Role.PATIENT.value:
+                    patient = Patient(
+                        userId=user.id
+                    )
+                    db.session.add(patient)
+                    db.session.flush() 
+
         db.session.commit()
 
     except Exception as e:
@@ -249,35 +256,35 @@ def view_appointments():
     for appointment in appointments:
         # Fetch the user (patient) who matches the patientId in the appointment
         patient_user = appointment.patient
-        if patient_user == None:
+        if patient_user is None:
             appointments_list.append({
-            'id': appointment.id,
-            'doctorId': appointment.doctorId,
-            'date': appointment.date.strftime('%Y-%m-%d'),
-            'title': appointment.title,
-            'time': appointment.time.strftime('%H:%M'),
-            'user': {
-            }
-        })
-        
-        # Add appointment and patient details to the response
-        else: 
+                'id': appointment.id,
+                'doctorId': appointment.doctorId,
+                'date': appointment.date.strftime('%Y-%m-%d'),
+                'title': appointment.title,
+                'time': appointment.time.strftime('%H:%M'),
+                'user': {
+                    # No patient user details available
+                }
+            })
+        else:
+            # Access user details through the relationship
             appointments_list.append({
-            'id': appointment.id,
-            'doctorId': appointment.doctorId,
-            'date': appointment.date.strftime('%Y-%m-%d'),
-            'title': appointment.title,
-            'time': appointment.time.strftime('%H:%M'),
-            'user': {
-                'id': patient_user.id,
-                'firstName': patient_user.firstName,
-                'lastName': patient_user.lastName,
-                'email': patient_user.email,
-                'contactNum': patient_user.contactNum,
-                'age': patient_user.age,
-                'gender': patient_user.gender
-            }
-        })
+                'id': appointment.id,
+                'doctorId': appointment.doctorId,
+                'date': appointment.date.strftime('%Y-%m-%d'),
+                'title': appointment.title,
+                'time': appointment.time.strftime('%H:%M'),
+                'user': {
+                    'id': patient_user.user.id,
+                    'firstName': patient_user.user.firstName,
+                    'lastName': patient_user.user.lastName,
+                    'email': patient_user.user.email,
+                    'contactNum': patient_user.user.contactNum,
+                    'age': patient_user.user.age,
+                    'gender': patient_user.user.gender
+                }
+            })
 
     return jsonify(appointments_list), 200
 

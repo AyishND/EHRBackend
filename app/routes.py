@@ -1,19 +1,22 @@
 from datetime import datetime, timedelta
+import uuid
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from app import db
-from app.models import Appointment, Gender, Role, User, Doctor
+from app.models import Appointment, Gender, Role, User, Doctor, Admin
 from werkzeug.exceptions import BadRequest
 
 main = Blueprint('main', __name__)
 
-# registreation auth
+
+
+# Registration Auth
 @main.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
 
     # Validate incoming data
-    required_fields = ['email', 'password', 'firstName', 'lastName', 'gender', 'age', 'contactNum', 'profilePic', 'role']    # FIXME: Add remaining fields here for signup
+    required_fields = ['email', 'password', 'firstName', 'lastName', 'gender', 'age', 'contactNum', 'profilePic', 'role']
     for field in required_fields:
         if field not in data:
             raise BadRequest(f'Missing required field: {field}')
@@ -43,9 +46,8 @@ def register():
     user.set_password(data['password'])  # Hash the password
 
     try:
-        # Add user to the database and flush to get user.id
         db.session.add(user)
-        db.session.flush()  # This will assign user.id before committing
+        db.session.flush()  
 
         # If the role is 'Doctor', create a corresponding Doctor instance
         if data['role'] == Role.DOCTOR.value:
@@ -53,12 +55,19 @@ def register():
                 userId=user.id
             )
             db.session.add(doctor)
-            db.session.flush()  # Flush again to get doctor.id
+            db.session.flush()  
 
             # Set doctorId in the User model
             user.doctorId = doctor.id
 
-        # Commit both user and doctor (if applicable) to the database
+        # If the role is 'Admin', create a corresponding Admin instance
+        elif data['role'] == Role.ADMIN.value:
+            admin = Admin(
+                userId=user.id
+            )
+            db.session.add(admin)
+            db.session.flush() 
+
         db.session.commit()
 
     except Exception as e:
@@ -66,6 +75,8 @@ def register():
         return jsonify({"message": "An error occurred while creating the user", "error": str(e)}), 500
 
     return jsonify({"message": "User created successfully"}), 201
+
+
 
 # login auth
 @main.route('/api/auth/login', methods=['POST'])
@@ -149,12 +160,12 @@ def get_user():
 
 
 
-
-# create appointment
+# Create appointment
 @main.route('/api/appointment', methods=['POST'])
 @jwt_required()
 def create_appointment():
     data = request.get_json()
+    current_user = get_jwt_identity()
 
     required_fields = ['doctorId', 'date', 'title', 'time']
     for field in required_fields:
@@ -175,19 +186,33 @@ def create_appointment():
     if not doctor:
         return jsonify({"message": "Doctor not found"}), 404
 
-    # Create an appointment
-    appointment = Appointment(
-        doctorId=data['doctorId'],
-        date=appointment_date,
-        title=data.get('title', ''),
-        time=appointment_time
-    )
+    user = User.query.get(current_user['id'])
+    
+    if user.role == Role.ADMIN.value:
+        # Admin can create appointments for any doctor
+        appointment = Appointment(
+            doctorId=data['doctorId'],
+            date=appointment_date,
+            title=data.get('title', ''),
+            time=appointment_time
+        )
+    elif user.role == Role.DOCTOR.value:
+        # Doctors can only create appointments for themselves
+        if doctor.id != user.doctorId:
+            return jsonify({"message": "You can only create appointments for yourself."}), 403
+        appointment = Appointment(
+            doctorId=user.doctorId,
+            date=appointment_date,
+            title=data.get('title', ''),
+            time=appointment_time
+        )
+    else:
+        return jsonify({"message": "Unauthorized user role."}), 403
 
     try:
         db.session.add(appointment)
         db.session.commit()
         
-        #response with appointment details
         response = {
             "message": "Appointment created successfully",
             "appointment": {
@@ -208,17 +233,39 @@ def create_appointment():
 
 # View All appointments
 @main.route('/api/appointment', methods=['GET'])
+@jwt_required()
 def view_appointments():
-    appointments = Appointment.query.all()
-    
+    current_user = get_jwt_identity()
+    user = User.query.get(current_user['id'])
+
+    if user.role == Role.ADMIN.value:
+        appointments = Appointment.query.all()
+    elif user.role == Role.DOCTOR.value:
+        appointments = Appointment.query.filter_by(doctorId=user.doctorId).all()
+    else:
+        return jsonify({"message": "Unauthorized user role."}), 403
+
     appointments_list = []
     for appointment in appointments:
+        # Fetch the user (patient) who matches the patientId in the appointment
+        patient_user = User.query.filter_by(patientId=appointment.patientId).first()
+
+        # Add appointment and patient details to the response
         appointments_list.append({
             'id': appointment.id,
             'doctorId': appointment.doctorId,
             'date': appointment.date.strftime('%Y-%m-%d'),
             'title': appointment.title,
-            'time': appointment.time.strftime('%H:%M')
+            'time': appointment.time.strftime('%H:%M'),
+            'user': {
+                'id': patient_user.id,
+                'firstName': patient_user.firstName,
+                'lastName': patient_user.lastName,
+                'email': patient_user.email,
+                'contactNum': patient_user.contactNum,
+                'age': patient_user.age,
+                'gender': patient_user.gender
+            }
         })
 
     return jsonify(appointments_list), 200
@@ -226,7 +273,6 @@ def view_appointments():
 
 
 # View appointment by date
-
 @main.route('/api/appointment/date', methods=['POST'])
 def get_appointments_by_date():
     # Extract data from JSON body
@@ -274,8 +320,14 @@ def get_appointments_by_date():
 @main.route('/api/appointment/<appointment_id>', methods=['GET'])
 @jwt_required()
 def get_appointment(appointment_id):
+    current_user = get_jwt_identity()
+    user = User.query.get(current_user['id'])
     appointment = Appointment.query.get(appointment_id)
-    if appointment:
+
+    if not appointment:
+        return jsonify({"message": "Appointment not found"}), 404
+
+    if user.role == Role.ADMIN.value or (user.role == Role.DOCTOR.value and appointment.doctorId == user.doctorId):
         return jsonify({
             'id': appointment.id,
             'doctorId': appointment.doctorId,
@@ -292,18 +344,23 @@ def get_appointment(appointment_id):
 @main.route('/api/appointment/<appointment_id>', methods=['DELETE'])
 @jwt_required()
 def delete_appointment(appointment_id):
+    current_user = get_jwt_identity()
+    user = User.query.get(current_user['id'])
     appointment = Appointment.query.get(appointment_id)
-    
+
     if not appointment:
         return jsonify({"message": "Appointment not found"}), 404
 
-    try:
-        db.session.delete(appointment)
-        db.session.commit()
-        return jsonify({"message": "Appointment deleted successfully"}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": "Error deleting appointment", "error": str(e)}), 500
+    if user.role == Role.ADMIN.value or (user.role == Role.DOCTOR.value and appointment.doctorId == user.doctorId):
+        try:
+            db.session.delete(appointment)
+            db.session.commit()
+            return jsonify({"message": "Appointment deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"message": "Error deleting appointment", "error": str(e)}), 500
+    else:
+        return jsonify({"message": "Unauthorized to delete this appointment."}), 403
 
 
 
@@ -326,9 +383,6 @@ def update_appointment(appointment_id):
     # Update appointment details
     updated = False
 
-    # Updating the fields 
-    if 'doctorId' in data:
-        appointment.doctorId = data['doctorId']
     if 'date' in data:
         try:
             appointment.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -338,7 +392,6 @@ def update_appointment(appointment_id):
         
     if 'time' in data:
         try:
-            # Expecting time in 'HH:MM' format
             appointment.time = datetime.strptime(data['time'], '%H:%M').time()
             updated = True
         except ValueError:

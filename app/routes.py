@@ -216,9 +216,9 @@ def view_appointments():
         appointments_list.append({
             'id': appointment.id,
             'doctorId': appointment.doctorId,
-            'date': appointment.date.strftime('%Y-%m-%d %H:%M:%S'),
+            'date': appointment.date.strftime('%Y-%m-%d'),
             'title': appointment.title,
-            'time': appointment.time.strftime('%H:%M:%S')
+            'time': appointment.time.strftime('%H:%M')
         })
 
     return jsonify(appointments_list), 200
@@ -236,9 +236,10 @@ def get_appointment(appointment_id):
             'doctorId': appointment.doctorId,
             'date': appointment.date.strftime('%Y-%m-%d'),
             'title': appointment.title,
-            'time': appointment.time.strftime('%H:%M:%S')
+            'time': appointment.time.strftime('%H:%M')
         }), 200
-    return jsonify({"message": "Appointment not found"}), 404
+    else:
+        return jsonify({"message": "Unauthorized to access this appointment."}), 403
 
 
 
@@ -272,10 +273,10 @@ def update_appointment(appointment_id):
     appointment = Appointment.query.get(appointment_id)
 
     if not appointment:
-        return jsonify({"message": "Appointment not found. Please check the appointment ID and try again.", 'code': 404,}), 404
+        return jsonify({"message": "Appointment not found. Please check the appointment ID and try again.", 'statusCode': 404,}), 404
 
     if not (user.role == Role.ADMIN.value or (user.role == Role.DOCTOR.value and appointment.doctorId == user.doctorId)):
-        return jsonify({"message": "Unauthorized to update this appointment. You may not have the necessary permissions.", 'code': 403,}), 403
+        return jsonify({"message": "Unauthorized to update this appointment. You may not have the necessary permissions.", 'statusCode': 403,}), 403
 
     # Update appointment details
     updated = False
@@ -288,7 +289,7 @@ def update_appointment(appointment_id):
             appointment.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
             updated = True
         except ValueError:
-            return jsonify({"message": "Invalid date format. Please use 'YYYY-MM-DD'.", 'code': 400,}), 400
+            return jsonify({"message": "Invalid date format. Please use 'YYYY-MM-DD'.", 'statusCode': 400,}), 400
         
     if 'time' in data:
         try:
@@ -296,7 +297,7 @@ def update_appointment(appointment_id):
             appointment.time = datetime.strptime(data['time'], '%H:%M').time()
             updated = True
         except ValueError:
-            return jsonify({"message": "Invalid time format. Please use 'HH:MM'.", 'code': 400,}), 400
+            return jsonify({"message": "Invalid time format. Please use 'HH:MM'.", 'statusCode': 400,}), 400
         
     if 'title' in data:
         appointment.title = data['title']
@@ -304,13 +305,13 @@ def update_appointment(appointment_id):
 
     if not updated:
         return jsonify({"message": "No update parameters provided. Please include 'date', 'time', or 'title' to update.", 
-                        'code': 400,}), 400
+                        'statusCode': 400,}), 400
 
     try:
         db.session.commit()
         return jsonify({
             'message': 'Appointment updated successfully.',
-            'code': 200,
+            'statusCode': 200,
             'appointment': {
                 'id': appointment.id,
                 'doctorId': appointment.doctorId,
@@ -321,4 +322,4 @@ def update_appointment(appointment_id):
         }), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": "An error occurred while updating the appointment. Please try again later.", "error": str(e), 'code': 500,}), 500
+        return jsonify({"message": "An error occurred while updating the appointment. Please try again later.", "error": str(e), 'statusCode': 500,}), 500

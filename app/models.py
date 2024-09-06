@@ -23,6 +23,7 @@ class User(db.Model):
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     doctorId = db.Column(UUID(as_uuid=True), nullable=True)
+    patientId = db.Column(UUID(as_uuid=True), nullable=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     firstName = db.Column(db.String(255), nullable=False)
@@ -59,15 +60,27 @@ class Doctor(db.Model):
 
 class Appointment(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
-    doctorId = db.Column(UUID(as_uuid=True), db.ForeignKey('doctor.id'), nullable=False) 
+    doctorId = db.Column(UUID(as_uuid=True), db.ForeignKey('doctor.id'), nullable=False)
+    patientId = db.Column(UUID(as_uuid=True), db.ForeignKey('patient.id'), nullable=True)  # Ensure this matches your DB schema
     date = db.Column(db.Date, nullable=False)
     title = db.Column(db.Text, nullable=True)
-    time = db.Column(db.Time, default=datetime.now().time(), nullable=False) 
+    notes = db.Column(db.Text, nullable=True)
+    time = db.Column(db.Time, default=datetime.now().time(), nullable=False)
     createdAt = db.Column(db.DateTime, default=datetime.now)
-    updatedAt = db.Column(db.DateTime, onupdate=datetime.now)    
+    updatedAt = db.Column(db.DateTime, onupdate=datetime.now)
     
-    # Relationship with Doctor
+    # Relationships
     doctor = db.relationship('Doctor', backref=db.backref('appointments'))
+    patient = db.relationship('Patient', backref=db.backref('appointments'))
+
+
+
+class Patient(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    userId = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    
+    # Relationship to the User model
+    user = db.relationship('User', backref=db.backref('patient', uselist=False))
 
     def __repr__(self):
         return f'<Appointment {self.id}>'

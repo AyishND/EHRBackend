@@ -225,7 +225,52 @@ def view_appointments():
 
 
 
-# Get appointment by ID
+# View appointment by date
+
+@main.route('/api/appointment/date', methods=['POST'])
+def get_appointments_by_date():
+    # Extract data from JSON body
+    data = request.get_json()
+    
+    # Check if 'date' is provided
+    if not data or 'date' not in data:
+        return jsonify({"message": "Date is required"}), 400
+    
+    date_str = data['date']
+    
+    try:
+        # Convert string to date
+        appointment_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"message": "Invalid date format. Use YYYY-MM-DD."}), 400
+
+    # Query appointments by date using SQLAlchemy ORM
+    appointments = Appointment.query.filter_by(date=appointment_date).all()
+
+    if not appointments:
+        return jsonify({"message": "No appointments found for this date."}), 404
+
+    # Prepare the appointments data to return
+    appointments_data = [
+        {
+            'id': str(appointment.id),
+            'doctorId': str(appointment.doctorId),
+            'patientId': str(appointment.patientId),
+            'date': appointment.date.strftime('%Y-%m-%d'),
+            'title': appointment.title,
+            'notes': appointment.notes,
+            'time': appointment.time.strftime('%H:%M'),
+            'createdAt': appointment.createdAt.strftime('%Y-%m-%d %H:%M:%S') if appointment.createdAt else None,
+            'updatedAt': appointment.updatedAt.strftime('%Y-%m-%d %H:%M:%S') if appointment.updatedAt else None,
+
+        }
+        for appointment in appointments
+    ]
+
+    return jsonify(appointments_data), 200
+
+
+# View appointment by ID
 @main.route('/api/appointment/<appointment_id>', methods=['GET'])
 @jwt_required()
 def get_appointment(appointment_id):

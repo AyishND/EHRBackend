@@ -266,12 +266,19 @@ def delete_appointment(appointment_id):
 @main.route('/api/appointment/<appointment_id>', methods=['PATCH'])
 @jwt_required()
 def update_appointment(appointment_id):
-    appointment = Appointment.query.get(appointment_id)
-    
-    if not appointment:
-        return jsonify({"message": "Appointment not found"}), 404
-
     data = request.get_json()
+    current_user = get_jwt_identity()
+    user = User.query.get(current_user['id'])
+    appointment = Appointment.query.get(appointment_id)
+
+    if not appointment:
+        return jsonify({"message": "Appointment not found. Please check the appointment ID and try again.", 'code': 404,}), 404
+
+    if not (user.role == Role.ADMIN.value or (user.role == Role.DOCTOR.value and appointment.doctorId == user.doctorId)):
+        return jsonify({"message": "Unauthorized to update this appointment. You may not have the necessary permissions.", 'code': 403,}), 403
+
+    # Update appointment details
+    updated = False
 
     # Updating the fields 
     if 'doctorId' in data:
@@ -279,39 +286,39 @@ def update_appointment(appointment_id):
     if 'date' in data:
         try:
             appointment.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+            updated = True
         except ValueError:
-            return jsonify({"message": "Invalid date format. Use 'YYYY-MM-DD'"}), 400
-    if 'title' in data:
-        appointment.title = data['title']
+            return jsonify({"message": "Invalid date format. Please use 'YYYY-MM-DD'.", 'code': 400,}), 400
+        
     if 'time' in data:
         try:
             # Expecting time in 'HH:MM' format
             appointment.time = datetime.strptime(data['time'], '%H:%M').time()
+            updated = True
         except ValueError:
-            return jsonify({"message": "Invalid time format. Use 'HH:MM'"}), 400
+            return jsonify({"message": "Invalid time format. Please use 'HH:MM'.", 'code': 400,}), 400
+        
+    if 'title' in data:
+        appointment.title = data['title']
+        updated = True
+
+    if not updated:
+        return jsonify({"message": "No update parameters provided. Please include 'date', 'time', or 'title' to update.", 
+                        'code': 400,}), 400
 
     try:
         db.session.commit()
-        updated_appointment = {
-            'id': appointment.id,
-            'doctorId': appointment.doctorId,
-            'date': appointment.date.strftime('%Y-%m-%d'),
-            'title': appointment.title,
-            'time': appointment.time.strftime('%H:%M')  # Only hours and minutes
-        }
-        return jsonify(updated_appointment), 200
+        return jsonify({
+            'message': 'Appointment updated successfully.',
+            'code': 200,
+            'appointment': {
+                'id': appointment.id,
+                'doctorId': appointment.doctorId,
+                'date': appointment.date.strftime('%Y-%m-%d'),
+                'title': appointment.title,
+                'time': appointment.time.strftime('%H:%M:%S')
+            }
+        }), 200
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": "Error updating appointment", "error": str(e)}), 500
-
-
-# Confirm appointment
-
-
-
-
-
-
-
-# Cancel appointment
-
+        return jsonify({"message": "An error occurred while updating the appointment. Please try again later.", "error": str(e), 'code': 500,}), 500

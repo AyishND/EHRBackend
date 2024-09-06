@@ -50,6 +50,9 @@ class User(db.Model):
 class Doctor(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     userId = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    specialization = db.Column(db.String(255), nullable=True) 
+    experience = db.Column(db.Integer, nullable=True)  
+    availability = db.Column(db.String(255), nullable=True) 
     
     # Relationship to the User model
     user = db.relationship('User', backref=db.backref('doctor', uselist=False))
@@ -83,5 +86,17 @@ class Patient(db.Model):
     user = db.relationship('User', backref=db.backref('patient', uselist=False))
 
     def __repr__(self):
-        return f'<Appointment {self.id}>'
+        return f'<Patient {self.id}>'
+
     
+class Admin(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    userId = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    appointmentId = db.Column(UUID(as_uuid=True), db.ForeignKey('appointment.id'), nullable=False)
+    createdAt = db.Column(db.DateTime, default=datetime.now)
+    updatedAt = db.Column(db.DateTime, onupdate=datetime.now)  
+    # Relationship to the User model
+    user = db.relationship('User', backref=db.backref('admin', uselist=False))
+
+    def __repr__(self):
+        return f'<Admin {self.user.email}>'

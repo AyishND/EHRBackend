@@ -248,10 +248,21 @@ def view_appointments():
     appointments_list = []
     for appointment in appointments:
         # Fetch the user (patient) who matches the patientId in the appointment
-        patient_user = User.query.filter_by(patientId=appointment.patientId).first()
-
+        patient_user = appointment.patient
+        if patient_user == None:
+            appointments_list.append({
+            'id': appointment.id,
+            'doctorId': appointment.doctorId,
+            'date': appointment.date.strftime('%Y-%m-%d'),
+            'title': appointment.title,
+            'time': appointment.time.strftime('%H:%M'),
+            'user': {
+            }
+        })
+        
         # Add appointment and patient details to the response
-        appointments_list.append({
+        else: 
+            appointments_list.append({
             'id': appointment.id,
             'doctorId': appointment.doctorId,
             'date': appointment.date.strftime('%Y-%m-%d'),

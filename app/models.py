@@ -24,6 +24,7 @@ class User(db.Model):
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     doctorId = db.Column(UUID(as_uuid=True), nullable=True)
+    adminId = db.Column(UUID(as_uuid=True), nullable=True)
     patientId = db.Column(UUID(as_uuid=True), nullable=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
@@ -35,8 +36,13 @@ class User(db.Model):
     contactNum = db.Column(db.String(15), nullable=True)
     profilePic = db.Column(db.String(255), nullable=True)  # URL as a string
     role = db.Column(db.String(10), nullable=False)
+    isAdmin = db.Column(db.Boolean, default=False)
     createdAt = db.Column(db.DateTime, default=datetime.now)
     updatedAt = db.Column(db.DateTime, onupdate=datetime.now)
+    
+    patient = db.relationship('Patient', back_populates='user', uselist=False, cascade="all, delete-orphan")
+    doctor = db.relationship('Doctor', back_populates='user', uselist=False, cascade="all, delete-orphan")
+    doctor = db.relationship('Admin', back_populates='user', uselist=False, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -57,7 +63,7 @@ class Doctor(db.Model):
     availability = db.Column(db.String(255), nullable=True) 
     
     # Relationship to the User model
-    user = db.relationship('User', backref=db.backref('doctor', uselist=False))
+    user = db.relationship('User', back_populates='doctor')
 
     def __repr__(self):
         return f'<Doctor {self.id}>'
@@ -86,7 +92,7 @@ class Patient(db.Model):
     userId = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
     
     # Relationship to the User model
-    user = db.relationship('User', backref=db.backref('patient', uselist=False))
+    user = db.relationship('User', back_populates='patient')
 
     def __repr__(self):
         return f'<Patient {self.id}>'
@@ -99,7 +105,7 @@ class Admin(db.Model):
     createdAt = db.Column(db.DateTime, default=datetime.now)
     updatedAt = db.Column(db.DateTime, onupdate=datetime.now)  
     # Relationship to the User model
-    user = db.relationship('User', backref=db.backref('admin', uselist=False))
+    user = db.relationship('User', back_populates='admin')
 
     def __repr__(self):
         return f'<Admin {self.user.email}>'

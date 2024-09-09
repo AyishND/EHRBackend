@@ -29,6 +29,7 @@ class User(db.Model):
     firstName = db.Column(db.String(255), nullable=False)
     lastName = db.Column(db.String(255), nullable=False)
     age = db.Column(db.Integer, nullable=True)
+    dateOfBirth = db.Column(db.Date, nullable=True)  
     gender = db.Column(db.String(10), nullable=True)
     contactNum = db.Column(db.String(15), nullable=True)
     profilePic = db.Column(db.String(255), nullable=True)  # URL as a string
@@ -68,6 +69,7 @@ class Appointment(db.Model):
     date = db.Column(db.Date, nullable=False)
     title = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    price = db.Column(db.Float, nullable=True)     
     time = db.Column(db.Time, default=datetime.now().time(), nullable=False)
     createdAt = db.Column(db.DateTime, default=datetime.now)
     updatedAt = db.Column(db.DateTime, onupdate=datetime.now)

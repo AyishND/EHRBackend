@@ -10,9 +10,9 @@ jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__)
-    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres:admin@localhost:5432/ehr"
+    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://postgres.sfdnwvfubodahbhbynxl:BreakingBadSeason123@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["JWT_SECRET_KEY"] = "b52264934f8dc66bba2a9f9b28871d0993a728f0be4ab165ab4b034af3219184"
+    app.config["JWT_SECRET_KEY"] = "9TM5WVZ9yGqTRY4m6Imx9acbPPomyzGTB3zsGJ3fKxABOZN1ZtVwyqx//LG1x8WHxYtpWnjpyUp3o2xlnhWNCA=="
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7) 
 
     db.init_app(app)

@@ -11,6 +11,7 @@ bcrypt = Bcrypt()
 class Role(PyEnum):
     DOCTOR = 'Doctor'
     ADMIN = 'Admin'
+    PATIENT = 'Patient'
     
 class Gender(PyEnum):
     MALE = 'Male'
@@ -94,7 +95,7 @@ class Patient(db.Model):
 class Admin(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
     userId = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
-    appointmentId = db.Column(UUID(as_uuid=True), db.ForeignKey('appointment.id'), nullable=False)
+    # appointmentId = db.Column(UUID(as_uuid=True), db.ForeignKey('appointment.id'), nullable=False)
     createdAt = db.Column(db.DateTime, default=datetime.now)
     updatedAt = db.Column(db.DateTime, onupdate=datetime.now)  
     # Relationship to the User model

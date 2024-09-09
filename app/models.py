@@ -42,7 +42,7 @@ class User(db.Model):
     
     patient = db.relationship('Patient', back_populates='user', uselist=False, cascade="all, delete-orphan")
     doctor = db.relationship('Doctor', back_populates='user', uselist=False, cascade="all, delete-orphan")
-    doctor = db.relationship('Admin', back_populates='user', uselist=False, cascade="all, delete-orphan")
+    admin = db.relationship('Admin', back_populates='user', uselist=False, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password = bcrypt.generate_password_hash(password).decode('utf-8')
